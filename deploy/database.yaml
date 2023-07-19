@@ -5,9 +5,9 @@ data:
         id serial PRIMARY KEY,
         text VARCHAR ( 100 ) UNIQUE NOT NULL
     );
-kind: ConfigMap
-metadata:
-  name: pg-init-script
+kind: ConfigMap                     # configMap支持热加载                    
+metadata:                           # ConfigMap 的元数据
+  name: pg-init-script              # ConfigMap 的名字  
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -15,22 +15,22 @@ metadata:
   name: postgres
   labels:
     app: database
-spec:
-  replicas: 1
-  selector:
+spec:                               # deployment 规格     
+  replicas: 1                       #  副本 1个
+  selector:                         #  选择器
     matchLabels:
       app: database
-  template:
+  template:                         # 创建pod 的模版
     metadata:
       labels:
-        app: database
-    spec:
+        app: database               # pod labels
+    spec:                           # 容器部署相关
       containers:
       - name: postgres
         image: postgres
         ports:
         - containerPort: 5432
-        volumeMounts:
+        volumeMounts:                          # volumeMounts 和volumes 通常是成对使用。含义：将卷sqlscript挂载到容器的 /docker-entrypoint-initdb.d目录下。
         - name: sqlscript
           mountPath: /docker-entrypoint-initdb.d
         env:
@@ -38,9 +38,9 @@ spec:
             value: "postgres"
           - name: POSTGRES_PASSWORD
             value: "postgres"
-      volumes:
-        - name: sqlscript
-          configMap:
+      volumes:                                    # 以卷的方式使用pg-init-script ConfigMap
+        - name: sqlscript                         # 卷的名字
+          configMap:                              # 如果 kind 是 Secret，这里把 configMap 改成 secret 即可 （其他都一样）
             name: pg-init-script
 ---
 apiVersion: v1
@@ -55,3 +55,7 @@ spec:
     app: database
   ports:
   - port: 5432
+
+
+# 通过 volumes 字段和volumesMounts 字段的定义，我们声明的ConfigMap内容将以文件的方式挂载到容器内，容器的docker-entrypoint-initdb.d 的目录下会出现CreateDB.sql 文件，
+# CreateDB.sql 文件的内容是ConfigMap 的SQL 语句，此文件通过ConfigMap挂载的方式动态注入到容器内

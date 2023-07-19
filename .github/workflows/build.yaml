@@ -1,31 +1,39 @@
+# 工作流的名称，会展示在github网页上。
 name: build
-
+# 触发工作流的条件：当main分支有新的提交时。
 on:
   push:
     branches:
       - "main"
 
+# 为job 配置的全局环境变量，用作镜像tag的前缀。也用于dockerhub 登录
 env:
-  DOCKERHUB_USERNAME: lyzhang1999
-
+  DOCKERHUB_USERNAME: weibaixin
+# 定义任务的运行环境，并且任务由7个step组成。uses字段代表使用了github Action 的某个插件。
 jobs:
   docker:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest   
     steps:
+      # 负责将代码检出到运行环境，uses 值是帮助检出代码的插件
       - name: Checkout
         uses: actions/checkout@v3
+      # set outputs 阶段 会输出环境变量sha_short，值为short commit id，方便后续引用。用于后续步骤中 docker 镜像标签
       - name: Set outputs
         id: vars
         run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      # 设置 QEMU 环境
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
+      # 设置 docker Buildx 环境
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
+      # 登录到Docker Hub。登录凭证来自GitHub仓库的机密 DOCKERHUB_TOKEN 
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      # 构建后端代码并将构建的镜像推到github，镜像标签即tag 通过 变量sha_short 的输出动态配置
       - name: Build backend and push
         uses: docker/build-push-action@v3
         with:

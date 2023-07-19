@@ -5,17 +5,17 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$1
 spec:
-  rules:
+  rules: 
     - http:
-        paths:
-          - path: /?(.*)
+        paths:                         # 路由策略
+          - path: /?(.*)               # 路由策略1：访问 url 包含前缀/,转发到 frontend-service 的 3000端口
             pathType: Prefix
             backend:
               service:
                 name: frontend-service
                 port:
                   number: 3000
-          - path: /api/?(.*)
+          - path: /api/?(.*)           #路由策略2： 访问URL 包含前缀 /api， 转发到 backend -service 的 5000 端口
             pathType: Prefix
             backend:
               service:
@@ -23,3 +23,8 @@ spec:
                 port:
                   number: 5000
   ingressClassName: nginx
+
+  # ingress 是k8s的内置对象，通常把Ingress看做service上的service。ingerss 只用来声明路由策略，不负责流量转发。
+  # 要使ingress生效，需要安装ingress-controller，如 ingress-nginx
+  # 生产环境中，ingress-nginx一般以 loadBalancer 类型对外暴露，ingress-nginx充当网关角色。好处：用一个负载均衡器实例，通过路由策略，可对外暴露所有的业务服务。
+  # 上例，对外暴露 前端服务和后端服务。

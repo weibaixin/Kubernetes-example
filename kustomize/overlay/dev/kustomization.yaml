@@ -1,7 +1,53 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
+kind: Kustomization      # 对象类型  kustomization
 bases:
-  - ../../base
+  - ../../base           # 指定基础配置的路径 （相对当前目录的上一级目录中的base）
   - database.yaml
-patchesStrategicMerge:
+patchesStrategicMerge:   # 覆盖方式之一：补丁策略合并。这些补丁文件将根据指定的合并策略进行合并，用于修改和扩展基础配置。kustomize 还有其他2种覆盖策略如 PatchTransformer,Patchjson6902
   - hpa.yaml
+
+
+  # 针对 image的 变更 可不使用patchs完成，直接参照如下文档修改即可。具体见 云原生学习笔记 20讲最后
+  # 如下代码待验证
+images:                       # 镜像名字和版本都变更
+- name: lyzhang1999/backend   # 对应base 中 backend.yaml 中的镜像名称
+  newName: weibaixin/backend  # 对应dev 环境要部署的镜像名称 （ dev 要部署的 image：weibaixin/backend：v1
+  newTag: v1                  # dev 环境 部署版本 ，
+resources:
+- backend.yaml
+
+images:                       # 仅镜像版本变更
+- name: lyzhang1999/frontend  # dev 要部署的前端 镜像 ，image：lyzhang1999/frontend：v1
+  newTag: v1
+resources:
+- frontend.yaml
+
+
+
+
+  # 第20 讲，kustomize 使用
+
+  # kustimize 下面 建立2个文件夹 base 放基础配置（3套环境的共性配置）， overlay 放 dev/prod/staging 3套环境部署的 补丁文档（对base 文件的覆盖内容），
+  #  3套环境部署差异：
+  #  1. hpa.yaml averageUtilizaiton = 90 (dev) ,60(staging) ,50(prod)
+  #  2  dev 和 staging  环境使用postgress db ，prod -使用外部数据库
+  #  3. 后端数据库连接信息不同  具体可见 3个环境配置文件差异
+
+  #  重点：各个目录下的 kustomization.yaml ， kustomize 会对比差异并进行覆盖操作 完成差异化环境部署
+
+  # 配置各套环境相关命令  （部署命令类似）
+  # 建立 dev 命名空间 ： kubectl create ns dev
+  # 部署kustomize 开发环境到dev 命名空间，使用kubectl apply -k 命令 （k 是kustomization 简称）
+  # kubectl apply -k kustomize/overlay/dev -n dev  （完成前后端db和HPA 的 service和deployment的产生，还有ingress 网络和前端ingress的产生 - ingeress 用户入口及nginx - 共7个）
+  # 查看相关差异是否生效
+  # 查看开发环境配置的后端服务HAP averageUtilizaiton 字段值： kubectl get hpa backend -n dev --output jsonpath='{.spec.metrics[0].resource.target.averageUtilization}'
+  # 查看数据库部署    kubectl get deployment postgres -n dev
+  # 查看backend deployment的Env 环境变量，看是否使用了集群内的数据库实例：kubectl get deployment backend -n dev --output jsonpath='{.spec.template.spec.containers[0].env[*]}'
+
+  # 删除环境命令 kubectl delete -k kustomize/overlay/dev -n dev    （相关7个文件被删除）
+  # 删除命名空间（即删除该命名空间下所有资源）kubectl delete ns dev
+
+  # 注： 部署时，根据 base 配置 （即 base 下的-存放3套环境共同的 k8s manifest文件）和overlay中个环境的差异（存放3套环境差异化的k8s manifest) 进行部署。（ 3套环境部署的是同一套应用，环境配置上有差异）
+  
+
+  # kustomize  有多种覆盖策略， prod/kustomization-op-env.yaml 是Patchjson6902 覆盖策略的例子。具体可见相关备注

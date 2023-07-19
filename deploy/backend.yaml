@@ -1,59 +1,59 @@
 apiVersion: apps/v1
 kind: Deployment
-metadata:
+metadata:                           # 元数据 ，包含deployment的名称和标签。
   name: backend
   labels:
-    app: backend
-spec:
+    app: backend                     #  用于匹配selector中的标签
+spec:                                #  用于定义deployment的规范
   replicas: 1
-  selector:
+  selector:                          # 用于选择要关联到deployment的Pod
     matchLabels:
       app: backend
-  template:
+  template:                          # 定义要创建的Pod 模版
     metadata:
-      labels:
-        app: backend
-    spec:
-      containers:
+      labels:                        # 定义Pod 的标签
+        app: backend                 # pod label字段 -与service中的 selector app 值一致（service 与对应pod的关联字段）
+    spec:                            # 定义Pod 的规范
+      containers:                    # 定义pod中的容器列表
       - name: flask-backend
         image: lyzhang1999/backend:latest
-        imagePullPolicy: Always
+        imagePullPolicy: Always               # 镜像拉取策略：always最新版本
         ports:
         - containerPort: 5000
-        env:
+        env:                               # 设置容器的环境变量（键值对），这里设置了容器内的应用程序连接数据库的环境变量（数据库的url，访问数据库的用户名和密码等）
         - name: DATABASE_URI
-          value: pg-service
+          value: pg-service                # 数据库的连接地址，因数据库和服务后端在同一命名空间下，故通过服务名称即可访问，全称是 pg-service.example.svc.cluster.local
         - name: DATABASE_USERNAME
           value: postgres
         - name: DATABASE_PASSWORD
           value: postgres
-        resources:
-          requests:
-            memory: "128Mi"
-            cpu: "128m"
-          limits:
+        resources:                       # 
+          requests:                      # 容器运行时对计算资源的最小要求量
+            memory: "128Mi"              # 最小内存要求量，128Mi =128兆，1Gi =1024兆
+            cpu:  "128m"                 # 最小CPU要求量，1000m=1核，500m =0.5核 ，在K8S中 ，m：不是将完整的CPU以锁定的方式配给pod，它计算的是时间片。m是CPU的调度方法，m 数字越高，被分配到的CPU的时间片越多，反之越少。
+          limits:                        # 容器运行时，所能使用的最大资源量
             memory: "256Mi"
             cpu: "256m"
-        readinessProbe: 
+        readinessProbe:                   # 就绪探针定义（就绪表示可以接受外部流量了）。探针用于检测容器（内部应用程序）的健康情况。k8s在指定的容器内部发送httpget请求到指定路径和端口，在指定时间内，返回200-399状态码时，视为本次探针成功
+          httpGet:                        # 探针中配置：使用http get发送请求到路径/healthy，端口号5000
+            path: /healthy
+            port: 5000
+            scheme: HTTP
+          initialDelaySeconds: 10         # 探测器在容器启动后的等待时间，避免误探测
+          failureThreshold: 5             # 失败阈值，即探测到连续失败次数>=5，则k8s认为探测是失败的。 即容器还没有就绪
+          periodSeconds: 10               # 2次探测容器的时间间隔 （如果容器每个周期间隔内都成功响应探测请求，k8s认为容器是健康的）根据应用的特性和需求，设置合适的探测间隔时间，可平衡检测容器的频率和系统资源利用的平衡。
+          successThreshold: 1             # 成功阈值
+          timeoutSeconds: 1               # 超时收到容器响应的时间，大于此时间，认为容器出了问题或响应太慢-本次探测是失败
+        livenessProbe:                    # 存活探针定义 ，当发现pod不健康会直接重启。
           httpGet:
             path: /healthy
             port: 5000
             scheme: HTTP
-          initialDelaySeconds: 10
           failureThreshold: 5
           periodSeconds: 10
           successThreshold: 1
           timeoutSeconds: 1
-        livenessProbe: 
-          httpGet:
-            path: /healthy
-            port: 5000
-            scheme: HTTP
-          failureThreshold: 5
-          periodSeconds: 10
-          successThreshold: 1
-          timeoutSeconds: 1
-        startupProbe: 
+        startupProbe:                     # 启动探针定义，用于启动慢的业务
           httpGet:
             path: /healthy
             port: 5000
@@ -65,15 +65,68 @@ spec:
           timeoutSeconds: 1
 ---
 apiVersion: v1
-kind: Service
+kind: Service                  # Service 部分用于定义 Kubernetes 中的服务。服务是一种抽象层，用于公开应用程序的网络连接点，使其能够在集群内部或集群外部进行访问。
 metadata:
-  name: backend-service
+  name: backend-service        # service 的名称，即service域名 （是固定不变的，是前端访问后端需要的，service IP 相比不够固定- 如集群重建，集群迁移 ip 会变，此外service部署到集群后才会知道其IP)
   labels:
     app: backend
 spec:
-  type: ClusterIP
-  selector:
+  type: ClusterIP              #  服务为应用提供稳定的网络终点 ，其他服务或pod 可以通过此IP地址访问后端服务。
+  selector:                    #  pod 选择器。通过label匹配pod。即只要label包含app=backend的pod 都会被当做backend -service的同一组逻辑pod。
     app: backend
   ports:
-  - port: 5000
-    targetPort: 5000
+  - port: 5000                  # service 监听端口
+    targetPort: 5000            # 将请求转发到pod时的目标端口
+
+    # 服务service 的名称的作用：
+    # 1.提供稳定的网络终点
+    # 2.实现负载均衡，service 使用k8s内部的负载均衡机制，传入的请求分发到后端pod上（本例中 具有app:backend 标签的pods),即使pod数发生变化，服务仍可使用，服务打到可用的pods上。
+    # 3.服务发现，其他的pod和服务可以通过service的名称来访问后端服务，而无需关心后端pod的具体IP地址
+
+    #  service与pod 的对应关系：
+    #  service 的 selector -app 即selector label 和 deployment中 pod label 即template下label 是对应的（值需一样），即service与下面pod的匹配关系。
+    #  service 与 endpoint 的关系：
+    #  当service 下设定pod 选择器  即selector 字段，无需再主动建立endpoint 对象。原因是：在创建service 之后，k8s自动会创建对应的endpoint 对象。-实现service的服务发现能力，负载均衡和会话保持的能力
+    #  如果 service下定义的pod选择器的label 与 deployment下定义的pod label 不同，会出现 service 创建成功后，K8S无法创建对应的endpoint对象，导致service找不到对应的pod，导致服务失败 如503 错误。
+  
+    #  service与endpoint 相关详见讲解 可见 云原生学习笔记 第八讲
+
+
+#  service在K8s 集群中有独立域名，完整格式 {$service_name}.{$namespace}.svc.cluster.local  如：while true; do wget -q -O- http://backend-service.example.svc.cluster.local:5000/host_name && sleep 1; done
+#  当请求发起和目的service 在同一命名空间下，只需访问service全称即可 {$service_name}  ，如：while true; do wget -q -O- http://backend-service:5000/host_name && sleep 1; done
+
+#  service访问的URL 固定 （无关pod IP),总可实现服务发现和负载均衡机制。
+
+# service 类型 ：ClusterIP,NodePort，Loadbalancer，externalName ，前3种通过Pod选择器将service与pod关联起来，再把请求转发到pod。externalName 是通过service与另外一个域名关联起来。
+# service类型：NodePort，Loadbalancer 可实现 业务对外暴露 即外网访问的功能，具体见ingress-nginx 和frontend-ingress 和 云原生笔记 第10讲
+
+# 第11讲 业务资源配额和自由弹性扩容：
+# 在K8S 中，CPU 和内存是2种不同的资源，CPU 是可压缩的，如果节点CPU资源不足，pod 一直分配不到cpu 的时间片，POD就一直处于阻塞状态；
+# 内存是不可压缩的，如果节点的内存资源不足，k8s会尝试重启pod 或进行重新调度。
+# 获取集群pod资源用量，命令 kubectl top pods -n example 
+# 查看节点的资源消耗 ，命令 kubectl top node
+# resources 设置技巧及与服务质量优先级的关系：（服务质量是pod层面的概念，决定了pod的调度和驱逐策略）
+# 未配置资源配额，即 requests和limits 未配置 -> 对应服务质量是besteffect（尽力而为） 服务质量优先级低，即当产生驱逐时，k8s 首先驱逐这类pod
+# 配置了资源配额 and request< limit，服务质量为 burstable（突发），优先级居中，
+# 配置了资源配额 and request = limit，服务质量是guaranteed（保证） 服务质量优先级最高，即节点资源不足时，产生驱逐时，K8S 最后驱逐这类pod
+
+# 对基础核心组件如中间件或核心服务，request 预估一个较高水平，并与limit 配相同的值。-保证核心服务所需的计算资源 且保证较高的服务质量，即使节点资源不足，也不容易被驱逐而导致服务中断。
+# 有明显资源波峰的业务，如java服务，高启动时会占用较多CPU 和内存，平稳运行时cpu和内存会回落，可将request配置 正常态所需的cpu和内存，启动状态的cpu和内存设置为 limit，以应对突发资源要求。
+
+# 第12讲健康检查：
+# readiness -就绪探针，通过健康状态来控制pod是否接受外部请求流量
+# 探针请求的完整路径：http://podIP:5000/healthy,get方式主动访问业务接口，返回200-399状态码时，视为本次探针请求 成功。
+# 结合上面定义中几个数字，得出如下结论：
+# 1.pod启动之后，60s内（initialDelaySeconds+failureThreshold*periodSeconds） 不能通过健康检查，说明pod 未就绪；
+# 2.pod处于正常状态时，如业务突然发生故障，健康检查会在50s内（failureThreshold*periodSeconds）识别出业务的不健康状态，健康检查会在10秒内（successThreshold*periodSeconds）识别出业务已恢复。
+# readiness 探针的重要作用：找出业务状态不健康的pod并把他们从 service Endpoint列表移除，使他无法接收外部请求。pod 刚启动成功时，startupprobe 返回成功后，就绪探针和存活探针也检测到成功，则把pod ip 加到serviceendpoint列表中，开始接收外部流量。
+
+# Liveness 探针 - 存活探针，相比readiness 探针，存活探针检测到不健康的pod会自动重启pod。相关字段定义类似。
+# readiness and liveness 检测运行中业务的健康状态，由于业务启动太慢而调整这2个探针的参数 不是最佳实践（会延迟k8s感知故障的速度。）故而引出startupProde。
+# startupProbe - 启动探针，针对业务启动阶段设计的探针。适合应用在业务启动慢的场景。
+# 3个探针都设置时，使用顺序如下
+# pod 启动时，readiness和liveness 探针被临时禁用，直到startupProbe探针返回成功，才启动其他2个探针。避免了业务启动阶段的 这2个探针造成干扰。
+
+# 实际生产环境，强烈建议加上这3类探针，可最大程度保证业务系统的高可用和稳定性 （ 在 水平扩缩容时，这3个探针也同样非常重要的价值）
+
+# 相关探针截图，请见 云原生学习笔记 12讲。

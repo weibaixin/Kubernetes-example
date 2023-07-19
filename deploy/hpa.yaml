@@ -3,16 +3,16 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: frontend
 spec:
-  scaleTargetRef:
-    kind: Deployment
+  scaleTargetRef:                           # 指明要扩展的目标资源：frontend deployment，pod 最小最大副本数都是2个。即缩容时最少保证2个副本，扩容时最大保证2个副本。
+    kind: Deployment                        # 这样的副本设置 有2个用处（1.测试环境和开发环境，保证系统的可用和一致性；2为特定英语或服务预留资源）。此种设置不太适合生产环境，因为没有扩缩容的空间。
     name: frontend
     apiVersion: apps/v1
   minReplicas: 2
   maxReplicas: 2
-  metrics:
+  metrics:                                  # 指定自动扩展的指标，监控CPU 的利用率，目标利用率是80%，当利用率>=80% 启动水平自动扩容。
     - type: Resource
       resource:
-        name: cpu
+        name: cpu                         
         target:
           type: Utilization
           averageUtilization: 80
@@ -27,9 +27,9 @@ spec:
     kind: Deployment
     name: backend
     apiVersion: apps/v1
-  minReplicas: 2
+  minReplicas: 2               # 当在对应的工作负载（这里是backend deployment）中定义的replicas（副本数）与hpa中设置的不同时，以HPA 中 minReplicas 设置为准。
   maxReplicas: 10
-  metrics:
+  metrics:                     # 扩容的衡量标准，cpu 利用率 和内存利用率 （pods cpu/memory的平均用量）
     - type: Resource
       resource:
         name: cpu
@@ -42,3 +42,8 @@ spec:
         target:
           type: Utilization
           averageUtilization: 50
+
+# hpa 可作用在deployment和statefulset，不能作用于Daemonset （无法缩放的工作负载）
+# hpa 对deployment工作负责实现扩缩容主要是通过Replicas 字段控制，进而控制replicasSet 对pod进行缩放操作。
+# hpa 工作原理：每隔一段时间在指标API里查询pod的资源用量，并和HPA 设置的阈值（通常是CPU 和内存使用率）比较，进而实现扩缩容。
+# hpa 生效，需满足2个必要条件：安装metrics server -监控pod 内存和cpu 资源变化；安装为工作负载配置资源的 request

@@ -3,10 +3,10 @@ kind: Kustomization
 bases:
   - ../../base
 
-patchesStrategicMerge:
+patchesStrategicMerge:   # 补丁策略合并 
   - hpa.yaml
 
-patchesJson6902:
+patchesJson6902:        # 补丁json6902 策略（json6902是一种修改JSON文档的标准格式，op-env.yaml 对backend.yaml deployment 部分做了差异化修改。
 - target:
     version: v1
     kind: Deployment
