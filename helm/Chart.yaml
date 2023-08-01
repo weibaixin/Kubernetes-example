@@ -1,6 +1,12 @@
+# v2 代表使用helm3 来安装应用
 apiVersion: v2
+# helm chart 名称
 name: kubernetes-example
+# helm chart 描述信息
 description: A Helm chart for Kubernetes
+# application 代表是k8s应用
 type: application
+# helm chart 版本号，当发布新的Chart时，需更新此version 号。
 version: 0.1.0
+# 应用的版本号，与helm chart 版本号无关
 appVersion: "0.1.0"

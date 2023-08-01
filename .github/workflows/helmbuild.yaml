@@ -1,0 +1,32 @@
+# 工作流实现：当github 有新commit id ，自动 打包helm package 并上传到github package中。
+# 前提：1.创建github token ，给helm chart 推送 github package 创建推送权限；2. helm registry login -u weibaixin https://ghcr.io
+# 手动步骤：main有新提交 -> 打包helm package（helm package ./helm） -> 上传helm package 到github package(helm push kubernetes-example-0.1.0.tgz oci://ghcr.io/weibaixin/helm package
+# 如下workflow（github actions 插件库有 helm 发布相关工具，helm 发布： uses：helm/chart-release-action@v1.5.0）
+
+name: Build and Push Helm Chart
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push-chart:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2  # 拉取代码到工作目录
+
+    - name: Set up Helm
+      uses: azure/setup-helm@v1  # 设置 Helm 环境
+
+    - name: Package Helm Chart
+      run: helm package ./helm  # 打包 Helm Chart，生成 .tgz 文件
+
+    - name: Push Helm Chart to GitHub Package
+      run: helm push ./kubernetes-example-0.1.0.tgz oci://ghcr.io/weibaixin/helm  # 推送 Helm Chart 到 GitHub Package Registry
+      env:
+        HELM_EXPERIMENTAL_OCI: 1
+      with:
+        password: ${{ secrets.GITHUB_TOKEN }}  # 使用 GitHub Token 进行认证和授权

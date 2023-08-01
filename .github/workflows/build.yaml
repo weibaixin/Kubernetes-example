@@ -27,19 +27,22 @@ jobs:
       # 设置 docker Buildx 环境
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      # 登录到Docker Hub。登录凭证来自GitHub仓库的机密 DOCKERHUB_TOKEN 
+      # 登录到Docker Hub。登录凭证来自GitHub仓库的机密 DOCKERHUB_TOKEN (具体值来做docker token - 见云原生16讲笔记)
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # 构建后端代码并将构建的镜像推到github，镜像标签即tag 通过 变量sha_short 的输出动态配置
+      # 构建后端代码并将构建的镜像推到github，镜像标签即tag 通过 变量sha_short 的输出动态配置，即每一次代码提交会产生一个镜像版本，镜像版本 short commit id。
+      # 构建的步骤：根据dockerfile build -> Docker tag （打镜像标签）-> push 到 docker hub （手动步骤可见第一讲 把业务代码构建为容器镜像，代码docker下）
+    
       - name: Build backend and push
         uses: docker/build-push-action@v3
         with:
           context: backend
           push: true
           platforms: linux/amd64,linux/arm64
+        # ：后是镜像版本，每一次代码提交 short commit id 对应一个镜像版本
           tags: ${{ env.DOCKERHUB_USERNAME }}/backend:${{ steps.vars.outputs.sha_short }}
       - name: Build frontend and push
         uses: docker/build-push-action@v3
@@ -48,15 +51,16 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ env.DOCKERHUB_USERNAME }}/frontend:${{ steps.vars.outputs.sha_short }}
-      # - name: Update helm values.yaml
-      #   uses: fjogeleit/yaml-update-action@main
-      #   with:
-      #     valueFile: 'helm/values.yaml'
-      #     commitChange: true
-      #     branch: main
-      #     message: 'Update Image Version to ${{ steps.vars.outputs.sha_short }}'
-      #     changes: |
-      #       {
-      #         "backend.tag": "${{ steps.vars.outputs.sha_short }}",
-      #         "frontend.tag": "${{ steps.vars.outputs.sha_short }}"
-      #       }
+      # 当 github 有更新代码提交时，即新commit ID时，更新helm下values.yaml中的前后端镜像的版本 即tag，tag 与 short commit ID 关联。      
+- name: Update helm values.yaml
+  uses: fjogeleit/yaml-update-action@main
+  with:
+    valueFile: 'helm/values.yaml'
+    commitChange: true
+    branch: main
+    message: 'Update Image Version to ${{ steps.vars.outputs.sha_short }}'
+    changes: |
+      {
+        "backend.tag": "${{ steps.vars.outputs.sha_short }}",
+        "frontend.tag": "${{ steps.vars.outputs.sha_short }}"
+      }

@@ -1,18 +1,22 @@
+
+# 相关gitlab-CI 自动构建镜像知识，也请参考 云原生笔记 17讲
+# stage定义阶段-build
 stages:
   - build
-
+# image 定义了运行镜像。gitlab ci 会使用docker：20.10.16镜像来启动一个容器并在容器内运行pipeline
 image: docker:20.10.16
-
+# 定义全局变量，第一个变量 共享Docker 证书。
 variables:
   DOCKER_TLS_CERTDIR: "/certs"
-  DOCKERHUB_USERNAME: "lyzhang1999"
-
+  DOCKERHUB_USERNAME: "weibaixin"
+# 定义格外的镜像，可理解为是额外的容器，它将和image 定义的容器相互协作，可互相访问。
 services:
   - docker:20.10.16-dind
-
+# 定义pineline最开始的shell脚本（登录docker以获取推送镜像的权限，第二个变量需在gitlab UI界面定义），在job运行前执行。
 before_script:
   - docker login -u $DOCKERHUB_USERNAME -p $DOCKERHUB_TOKEN
-
+# 定义了一个job：“build_and_push” 是job 名。”stage: build“ 定义了Job所属的stage，即build阶段。script 定义具体的shell脚本（构建镜像，推送镜像）。按顺序执行。
+# $CI_COMMIT_SHORT_SHA  是内置变量，来获取 short commit id。即 每次版本提交 对应一个镜像版本。
 build_and_push:
   stage: build
   script:

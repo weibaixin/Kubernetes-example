@@ -1,0 +1,46 @@
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: docker-socket
+spec:
+  workspaces:
+    - name: source
+  params:
+    - name: image
+      description: Reference of the image docker will produce.
+    ......
+  steps:
+    - name: docker-build
+      image: docker:stable
+      env:
+        ......
+        - name: IMAGE
+          value: $(params.image)
+        - name: DOCKER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: registry-auth
+              key: password
+        - name: DOCKER_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: registry-auth
+              key: username
+      workingDir: $(workspaces.source.path)
+      script: |
+        cd $SUBDIRECTORY
+        docker login $REGISTRY_URL -u $DOCKER_USERNAME -p $DOCKER_PASSWORD
+        if [ "${REGISTRY_URL}" = "docker.io" ] ; then
+          docker build --no-cache -f $CONTEXT/$DOCKERFILE_PATH -t $DOCKER_USERNAME/$IMAGE:$TAG $CONTEXT
+          docker push $DOCKER_USERNAME/$IMAGE:$TAG
+          exit
+        fi
+        docker build --no-cache -f $CONTEXT/$DOCKERFILE_PATH -t $REGISTRY_URL/$REGISTRY_MIRROR/$IMAGE:$TAG $CONTEXT
+        docker push $REGISTRY_URL/$REGISTRY_MIRROR/$IMAGE:$TAG
+      volumeMounts: # 共享 docker.socket
+        - mountPath: /var/run/
+          name: dind-socket
+  sidecars: #sidecar 提供 docker daemon
+    - image: docker:dind
+      ......
