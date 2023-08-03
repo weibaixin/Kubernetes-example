@@ -51,16 +51,18 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ env.DOCKERHUB_USERNAME }}/frontend:${{ steps.vars.outputs.sha_short }}
+     
       # 当 github 有更新代码提交时，即新commit ID时，更新helm下values.yaml中的前后端镜像的版本 即tag，tag 与 short commit ID 关联。      
-- name: Update helm values.yaml
-  uses: fjogeleit/yaml-update-action@main
-  with:
-    valueFile: 'helm/values.yaml'
-    commitChange: true
-    branch: main
-    message: 'Update Image Version to ${{ steps.vars.outputs.sha_short }}'
-    changes: |
-      {
-        "backend.tag": "${{ steps.vars.outputs.sha_short }}",
-        "frontend.tag": "${{ steps.vars.outputs.sha_short }}"
-      }
+#- name: Update helm values.yaml
+# 使用github action中 yaml-update-action 插件来修改helm 下 values.yaml文件并推送仓库。如果使用gitlab 或tekton 构建镜像，可调用yq命令行工具修改YAML文件，再使用git命令推送仓库。
+# uses: fjogeleit/yaml-update-action@main 
+#  with:
+#    valueFile: 'helm/values.yaml'
+#    commitChange: true
+#   branch: main
+#    message: 'Update Image Version to ${{ steps.vars.outputs.sha_short }}'
+#    changes: |
+#     {
+#        "backend.tag": "${{ steps.vars.outputs.sha_short }}",
+#       "frontend.tag": "${{ steps.vars.outputs.sha_short }}"
+#      }
