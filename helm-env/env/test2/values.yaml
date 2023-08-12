@@ -1,3 +1,4 @@
 frontend:
   image: weibaixin/frontend
   tag: latest-env
+# 新增加环境test2
