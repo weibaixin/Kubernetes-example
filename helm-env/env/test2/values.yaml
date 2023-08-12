@@ -1,4 +1,4 @@
 frontend:
   image: weibaixin/frontend
   tag: latest-env
-# 新增加环境test2
+# 新增加环境test2. 验证多环境快速拉起。
