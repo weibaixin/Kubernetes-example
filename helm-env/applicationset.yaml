@@ -6,17 +6,17 @@ metadata:
 spec:
   generators:
   - git:
-      repoURL: "https://github.com/lyzhang1999/kubernetes-example.git"
-      revision: HEAD
+      repoURL: "https://github.com/weibaixin/kubernetes-example.git"
+      revision: HEAD # 远端最新修改的版本
       files:
       - path: "helm-env/env/*/values.yaml"
   template:
     metadata:
-      name: "{{path.basename}}"
+      name: "{{path.basename}}"  # 配置了各个application 的名字
     spec:
       project: default
       source:
-        repoURL: "https://github.com/lyzhang1999/kubernetes-example.git"
+        repoURL: "https://github.com/weibaixin/kubernetes-example.git"  # helm chart的来源仓库
         targetRevision: HEAD
         path: "helm-env"
         helm:
@@ -24,8 +24,10 @@ spec:
           - "env/{{path.basename}}/values.yaml"
       destination:
         server: 'https://kubernetes.default.svc'
-        namespace: '{{path.basename}}'
+        namespace: '{{path.basename}}'  # 配置部署应用的命名空间
       syncPolicy:
         automated: {}
         syncOptions:
           - CreateNamespace=true
+
+# 由2部分组成：spec.generators 生成器； spec.template （作用是为application 配置模版，结合生成器，它能够动态生成application对象
