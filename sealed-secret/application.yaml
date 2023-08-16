@@ -1,20 +1,29 @@
+# 指定所使用的kubernetes API版本，用于ArgoCD应用配置。
 apiVersion: argoproj.io/v1alpha1
-kind: Application
+# 指定这个yaml 文件的类型是 argoCD 应用
+kind: Application 
+# 定义资源的元数据信息，如应用名称和命名空间  
 metadata:
   name: spring-demo
   namespace: argocd
+# 规格部分，定义argoCD应用的详细配置
 spec:
+# 将应用归属到名为 default的 项目中
    project: default
-   source:
-     repoURL: https://github.com/lyzhang1999/kubernetes-example.git
+   source:  # 定义应用的源代码和版本信息，HEAD-使用源代码仓库的最新版本
+     repoURL: https://github.com/weibaixin/kubernetes-example.git
      targetRevision: HEAD
-     path: sealed-secret/manifest
-   destination:
-     server: https://kubernetes.default.svc
-     namespace: secret-demo
-   syncPolicy:
-     automated:
-       prune: false
-       selfHeal: false
-     syncOptions:
-      - CreateNamespace=true
+     path: sealed-secret/manifest # 从此路径获取kubernetes资源清单文件
+   destination: # 应用部署的目标位置
+     server: https://kubernetes.default.svc  # 指定目标集群的API服务器地址
+     namespace: secret-demo #指定目标集群中部署的命名空间名称
+   syncPolicy: # 定义应用同步策略，即如何将应用的状态与配置同步
+     automated:  # 自动同步配置
+       prune: false  # 不自动删除无用资源
+       selfHeal: false  # 不进行自愈操作（自愈的含义：当应用的实际状态与期望的配置状态不匹配时，自动执行一些操作来尝试修复应用的状态，使其与配置状态一致）
+     syncOptions:   #指定同步选项
+      - CreateNamespace=true  # 如目标命名空间不存在，在同步时创建目标命名空间
+
+      # 是否自愈的解释：
+      # 禁止自愈时：出了问题，需手动介入来解决问题并恢复应用的正确状态。可更好的控制和监视应用的修复过程。
+      # 开启自愈时: 可自动纠正应用状态，提高系统的稳定性和可靠性

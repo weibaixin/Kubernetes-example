@@ -5,12 +5,12 @@ metadata:
   namespace: argocd
 spec:
   generators:
-  - git:
+  - git: #生成器类型，从git仓库生成应用
       repoURL: "https://github.com/weibaixin/kubernetes-example.git"
       revision: HEAD # 远端最新修改的版本
       files:
-      - path: "helm-env/env/*/values.yaml"
-  template:
+      - path: "helm-env/env/*/values.yaml"   #指定要处理的文件列表
+  template:  # 应用生成的模版部分
     metadata:
       name: "{{path.basename}}"  # 配置了各个application 的名字
     spec:
@@ -18,16 +18,16 @@ spec:
       source:
         repoURL: "https://github.com/weibaixin/kubernetes-example.git"  # helm chart的来源仓库
         targetRevision: HEAD
-        path: "helm-env"
+        path: "helm-env"  #helm chart 的路径
         helm:
-          valueFiles:
+          valueFiles:  # 指定要使用的values文件路径
           - "env/{{path.basename}}/values.yaml"
-      destination:
+      destination:     # 应用的目标配置
         server: 'https://kubernetes.default.svc'
         namespace: '{{path.basename}}'  # 配置部署应用的命名空间
-      syncPolicy:
-        automated: {}
+      syncPolicy:  # 同步策略设置
+        automated: {}  # 启用自动同步策略
         syncOptions:
-          - CreateNamespace=true
+          - CreateNamespace=true  # 创建目标命名空间 （如果不存在）
 
 # 由2部分组成：spec.generators 生成器； spec.template （作用是为application 配置模版，结合生成器，它能够动态生成application对象
