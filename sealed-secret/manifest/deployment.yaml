@@ -11,16 +11,17 @@ spec:
       labels:
         app: sample-spring
     spec:
-      imagePullSecrets:
+      imagePullSecrets:  # 是镜像拉取凭证，会通过kubeseal创建 （image-pull-secret.yaml)
       - name: github-regcred
       containers:
-      - name: sample-spring
-        image: ghcr.io/lyzhang1999/sample-kotlin-spring:latest
+      - name: sample-spring 
+      # 镜像存放在github package仓库中，即域名为 ghcr.io 镜像仓库中。同时设置了私有仓库类型，在没向k8s集群提供拉取镜像凭证的情况下，无法拉取镜像。这意味着直接将这个工作负载部署到k8s集群将得到imagepullbackoff 事件。即无法拉取镜像的错误语。
+        image: ghcr.io/weibaixin/sample-kotlin-spring:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
           name: http
-        env:
+        env: # 配置了env 环境变量，它的值来源 sample-secret的secret对象
           - name: PASSWORD
             valueFrom:
               secretKeyRef:
